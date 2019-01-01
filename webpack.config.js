@@ -1,9 +1,13 @@
 const path = require('path')
 const htmlConfig = require('./htmlConfig.js')
-//生成html插件
+//html-webpack-plugin 可以把打包后的 CSS 或者 JS 文件引用直接注入到 HTML 模板中
 const htmlWebpackPlugin = require('html-webpack-plugin')
 //抽离css插件
-const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin")
+const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin')
+//每次生成前清理dist目录
+const CleanWebpackPlugin = require('clean-webpack-plugin')
+
 
 var htmlWebpackPlugins = []
 var entrys = {}
@@ -29,7 +33,7 @@ for(var key in htmlConfig){
 }
 
 module.exports = {
-	mode: 'production',
+	mode: 'production', //development / production
 	entry: entrys,
 	output: {
 		path: path.resolve(__dirname, 'dist'),
@@ -60,19 +64,52 @@ module.exports = {
 					MiniCssExtractPlugin.loader,
 					// 'style-loader',
 					//每个loader可以有自己的参数，options字段就是定义参数
-					{ loader: 'css-loader', options: {importLoaders: 1}},
+					{ 
+						loader: 'css-loader', 
+						options: {
+							importLoaders: 1,
+							//启用sourceMap可以在页面那种找到样式来源，便于调试
+							sourceMap: true
+						}
+					},
 					{
 					  loader: 'postcss-loader',
 					  options: {
+					  	//启用sourceMap可以在页面那种找到样式来源，便于调试
+					  	sourceMap: true,
 					    ident: 'postcss',
 					    //autoprefixer是postcss-loader的一个插件，需要安装，用于给css添加前缀
-					    plugins: [
-					      require('autoprefixer')({
-					      	cascade: false
-					      })
+					    plugins: (loader) => [
+					    	require('autoprefixer')({browsers: ['> 1% in CN']})
 					    ]
 					  }
 					}
+				]
+			},
+			{
+				test: /\.(png|svg|jpg|gif)$/,
+				use: [
+					{
+						loader: 'file-loader',
+				        options: {
+				            name: '[path][name].[ext]',//path为相对于context的路径
+				            context:'src',
+				            publicPath:function(url){//返回最终的资源相对路径
+				                return path.relative('dist',url).replace(/\\/g,'/');
+				            }
+				        }
+					}
+				]
+			},
+			{	
+				test: /\.(png|svg|jpg|gif|jpeg|ico|woff|woff2|eot|ttf|otf)$/,
+				use: [
+					{
+						loader: 'url-loader', // 根据图片大小，把图片优化成base64
+						options: {
+						  limit: 10000
+						}
+					},
 				]
 			},
 			{
@@ -82,10 +119,15 @@ module.exports = {
 		]
 	},
 	plugins: [
+		// 压缩CSS插件
+		new OptimizeCSSAssetsPlugin({}),
+		//抽离CSS
 	    new MiniCssExtractPlugin({
-	      filename: "css/[name].css",
+	      filename: "css/[name]-[hash].css",
 	      chunkFilename: "[id].css"
 	    }),
+	    //清理dist目录
+	    new CleanWebpackPlugin(['dist']),
 		...htmlWebpackPlugins
 	]
 }
