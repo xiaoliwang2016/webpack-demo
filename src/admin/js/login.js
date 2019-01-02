@@ -1,5 +1,4 @@
-import { generateRand } from '../../utils/utils.js'
+import '../css/bootstrap.min.css'
+import '../css/login.css'
 
-var num = generateRand(10)
-
-console.log('here in login.js, the random num is : ' , num)
+console.log($);
